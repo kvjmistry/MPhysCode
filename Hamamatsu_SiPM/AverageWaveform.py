@@ -1,124 +1,148 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Dec 10 16:18:33 2016
+Last Updated: 23/06/18
 
-@author: User
+@author: kmistry
+This script will be used to analyse the Hammamatsu SiPM Waveforms
+and produce a plot of the single photoelectron response. 
+
 """
-
-'Run this for the Histograms'
-
-
-"Import Library"
-from xml.dom import minidom
+# Import Library
+from xml.dom import minidom     # For parsing an xml file input
 import matplotlib.pyplot as plt # Plottting Software
-import numpy as np
-from scipy.optimize import curve_fit
+import numpy as np              # For data analysis
+from scipy.optimize import curve_fit # For curve fitting
 from scipy.signal import savgol_filter
 import matplotlib.patches as mpatches
 
-
-font = {'family' : 'serif',
-        'weight' : 'bold',
-        'size'   : 13}
-plt.rc('font', **font)
+# Set some default plot parameters. 
+plt.rcParams['axes.linewidth'] = 3                # Sets the boarder width 
+plt.rcParams.update({'errorbar.capsize': 1.2})    # Gives a cap to the errorbars
+plt.rcParams["font.size"] = 20                    # Sets all font sizes to bold
+plt.rcParams["lines.markersize"] = 4              
+plt.rcParams["grid.linestyle"] = "--"             # Adds a grid to the plots
+plt.rcParams['figure.figsize'] = 8, 8             # Sets the figure size
 
 
 #%%
-'function to read in all the data'
+#*****************************************************************************************************
+'Function that reads the xml file and appends its data to a list'
 def xmlread(filename):
-    PeakMax =[]
-    VoltsOLD = []
-    AverageWaveform = []
-    PeakList = []
-    Baseline = []
-    Baseline2 = []
-    tempmax = [];
-    global Positions; Positions = [];
-    u = 0;
-    p3       = 2015
-    p4       = 2035
-    Rows     = 1000
-     #number of data points
+    # Define arrays
+    PeakMax = [] # Array containing the peak maximum values in the region of interest
+    Data = []    
+    AverageWaveform = [] 
+    EventList = [] # Array containing the events
+    Baseline = []  # Array containing the initial baseline
+    Baseline2 = [] # Array containing the second baseline
+    PeakTime = []  # Array containing the time of the max peak
+    
+    ROI_Start       = 2015 # Start position of Region of Interest (ROI)
+    ROI_End         = 2035
+    NumEvents       = 1000 # The total number of events 
+     
+    # Define the length of the baseline before trigger
     BaselineLength = 1900
 
-    xmldoc   = minidom.parse("%s" %filename)
+    xmldoc   = minidom.parse("%s" %filename) # Load the file
     
-    # Loop over and add all the arrays to variable Volts
-    for j in range(0,Rows):   
-        VoltsOLD = xmldoc.getElementsByTagName("trace")[j].firstChild.data # grabs the data in the trace domain
-        VoltsOLD = VoltsOLD.split()
+    # Loop over all events and add all the arrays to variable Data
+    for j in range(0,NumEvents):   
+        Data = xmldoc.getElementsByTagName("trace")[j].firstChild.data # Grabs the data in the trace domain of the xml
+        Data = Data.split() # Splits the list into individual elements in a list
         
-        for i in range(len(VoltsOLD)):
-            VoltsOLD[i] = float(VoltsOLD[i])
+        # Loop over the data and convert its members to a float
+        for i in range(len(Data)):
+            Data[i] = float(Data[i])
         
+        # Insert condition to ignore corrupt data files. ##HARDCODED and file dependent##
         if (j==9427):
-            Baseline.append(0);
-            continue;
+            Baseline.append(0) # Keeps the baseline list the same size. 
+            continue
             
-        Baseline.append(sum(VoltsOLD[0:BaselineLength])/BaselineLength)  
-        VoltsOLD    = np.array(VoltsOLD) - Baseline[j]
+        Baseline.append(sum(Data[0:BaselineLength])/BaselineLength) # Average the baseline and append
+        Data    = np.array(Data) - Baseline[j]                      # Subtract the baseline from the data
         
-        Baseline2 = sum(VoltsOLD[0:BaselineLength])/BaselineLength  
-        VoltsOLD    = VoltsOLD - Baseline2
+        Baseline2 = sum(Data[0:BaselineLength])/BaselineLength      # Repeat baseline subtraction
+        Data    = Data - Baseline2
       
-        VoltsNew = VoltsOLD
-        VoltsNew = savgol_filter(VoltsOLD,31,3)
+        SGFilteredData = Data                       # Copy the data
+        SGFilteredData = savgol_filter(Data,31,3)   # Filter the data with the SG Filter
         
-        "Store the peak into a list"
-        PeakList.append(VoltsNew)
+        # Store the SG Filtered event into a list
+        EventList.append(SGFilteredData)
        
-        'find the max peak of the array via mean method' 
-        PeakMax.append(np.max(VoltsNew[p3:p4]) )
-        Positions.append(np.argmax(VoltsNew[p3:p4]))
-        print (j)
-        
-    AverageWaveform = [sum(x) for x in zip(*PeakList)]                  
-    AverageWaveform = np.array(AverageWaveform)/Rows   # average waveform
+        # Find the maximum of the peak in the specified region of interest
+        PeakMax.append(np.max(SGFilteredData[ ROI_Start : ROI_End]) )
+        PeakTime.append(np.argmax(SGFilteredData[ ROI_Start : ROI_End] )) # Time stamp of Max Peak
+        print (j) # Display the event number
+
+    # Average every event to get an average SiPM Signal    
+    AverageWaveform = [sum(x) for x in zip(*EventList)]                  
+    AverageWaveform = np.array(AverageWaveform)/NumEvents   
     
+    # Push back each array to a temporary list to be returned by the function
     temp.append(PeakMax)
     temp.append(Baseline)
-    temp.append(PeakList)
+    temp.append(EventList)
     temp.append(AverageWaveform)
+    temp.append(PeakTime)
     return temp
- 
+ #*****************************************************************************************************
+'Begining of Main Function'
+# Create arrays 
 temp = []
-PeakList = []
+EventList = []
 BaselineList = []    
 PeakMaxList = []    
 AverageWaveformList = []
+PeakTimeList = []
 
+# Loop over file lists in directory.
 for i in range(4,5): 
     print('%i =' %i) 
     filename = "SIPMthreeW%i.xml" %i
+    
+    # Call xmlread function to read the data in.
     temp = xmlread(filename)
-    PeakList.append(temp[2])
-    BaselineList.append(temp[1])
+
+    # Fill the lists with the data
     PeakMaxList.append(temp[0])
-    AverageWaveformList.append(temp[3])   
+    BaselineList.append(temp[1])
+    EventList.append(temp[2])
+    AverageWaveformList.append(temp[3]) 
+    PeakTimeList.append(temp[4])  
     temp = []
 
+#*****************************************************************************************************
+'Make a plot of the average waveform for each file loaded.'
+'Colour each average waveform with a colour map'
 plt.figure()
 cmap = plt.get_cmap('brg')
 colors = [cmap(i) for i in np.linspace(0, 1, len(AverageWaveformList))]
-        
-          
-label = ['CAEN Power Supply','Tenma Power Supply','29V','30V','50 v','60v']          
-          
+           
+label = ['CAEN Power Supply','Tenma Power Supply','29V','30V','50 v','60v']   # Add labels to waveforms       
+
+# Make the Plot          
 for i, color in enumerate(colors, start=0):
     plt.plot(AverageWaveformList[i], color=color, label=label[i])
+
+# Plot customisation
 #plt.legend(loc='best')
-plt.xlabel("Time (ns)",weight = 'bold', fontsize = 13) #xlabel
-plt.ylabel("ADC",weight = 'bold', fontsize = 13) #yabel   
-plt.title("Hamamatsu",weight = 'bold', fontsize = 13)
+plt.xlabel("Time [ns]") # xlabel
+plt.ylabel("ADC")       # yabel   
+plt.title("Hamamatsu")
 plt.show()
 
-#%%
+#*****************************************************************************************************
+# Plot N Events on the same plot with option to include another SG Filter on the data.
 for i in range(0,50): 
     plt.figure('%i' %(i+1))
-    plt.plot(PeakList[0][i],alpha = 1)
-    #plt.plot(savgol_filter(PeakList[0][i],11,2))
+    plt.plot(EventList[0][i],alpha = 1)
+    #plt.plot(savgol_filter(EventList[0][i],11,2))
     
-   
+#*****************************************************************************************************   
 #%% 
 # old histsplit = 500
 histSplitting = 100
