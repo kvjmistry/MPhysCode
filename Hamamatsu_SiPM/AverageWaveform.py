@@ -8,6 +8,7 @@ This script will be used to analyse the Hammamatsu SiPM Waveforms
 and produce a plot of the single photoelectron response. 
 
 """
+#*****************************************************************************************************
 # Import Library
 from xml.dom import minidom     # For parsing an xml file input
 import matplotlib.pyplot as plt # Plottting Software
@@ -38,7 +39,7 @@ def xmlread(filename):
     Baseline2 = [] # Array containing the second baseline
     PeakTime = []  # Array containing the time of the max peak
     
-    ROI_Start       = 2015 # Start position of Region of Interest (ROI)
+    ROI_Start       = 2015 # Start time of Region of Interest (ROI) [ns]
     ROI_End         = 2035
     NumEvents       = 1000 # The total number of events 
      
@@ -56,7 +57,8 @@ def xmlread(filename):
         for i in range(len(Data)):
             Data[i] = float(Data[i])
         
-        # Insert condition to ignore corrupt data files. ##HARDCODED and file dependent##
+        # Insert condition to ignore corrupt data files. 
+        'HARDCODED and file dependent'
         if (j==9427):
             Baseline.append(0) # Keeps the baseline list the same size. 
             continue
@@ -122,7 +124,7 @@ plt.figure()
 cmap = plt.get_cmap('brg')
 colors = [cmap(i) for i in np.linspace(0, 1, len(AverageWaveformList))]
            
-label = ['CAEN Power Supply','Tenma Power Supply','29V','30V','50 v','60v']   # Add labels to waveforms       
+label = ['50 V','55 V'] # Add labels to waveforms for legend       
 
 # Make the Plot          
 for i, color in enumerate(colors, start=0):
@@ -144,35 +146,35 @@ for i in range(0,50):
     
 #*****************************************************************************************************   
 #%% 
-# old histsplit = 500
-histSplitting = 100
-t=0
+# Create a histogram of the Peak Maximum List
+histSplitting = 100 # Varibae to determine the bin sizes
+t=0                 
 
-'histogram ranges'
+# Get the histogram ranges
 HistMin  = min(PeakMaxList[t])
 HistMAX  = max(PeakMaxList[t])
-BinWidth = (HistMAX - HistMin)/histSplitting
-plt.figure()
+BinWidth = (HistMAX - HistMin)/histSplitting # Define the bin width 
 
-'histogram'
-(CountsData, bins2, bars ) = plt.hist(PeakMaxList[t], bins = np.arange( HistMin, HistMAX,BinWidth),
-    alpha = 1.0,label='Data',color = 'k',histtype = 'step')
+plt.figure() # Create a new figure
 
-plt.xlabel("ADC",weight = 'bold', fontsize = 13) #xlabel
-plt.ylabel("Counts",weight = 'bold', fontsize = 13) #yabel   
+# Make the Histogram
+(BinValue, BinEdge, Patches ) = plt.hist(PeakMaxList[t], bins = np.arange( HistMin, HistMAX, BinWidth),
+    alpha = 1.0, label='Data', color = 'k', histtype = 'step')
+
+# Histogram Customisation
+plt.xlabel("ADC")       # x Label
+plt.ylabel("Counts")    # y Label   
 plt.title("53 V (high intensity)",weight = 'bold', fontsize = 13)        
 
-'find the centroid of each bin '
+# Get the centroid of each bin rather than the edges
 bincentroid = []
-midpoint = (bins2[15]- bins2[14])/2 #gives first midpoint
-histSplitting = len(CountsData)
-            
-            
+midpoint = (BinEdge[15]- BinEdge[14])/2 # Gives the midpoint displacement
+histSplitting = len(BinValue)
+                
 for k in range (0,histSplitting):
-         bincentroid.append(midpoint +k*BinWidth)
+    bincentroid.append(midpoint + k * BinWidth)
         
-bincentroid = np.array(bincentroid) 
-bincentroid = bincentroid  + HistMin  
+bincentroid = np.array(bincentroid)  # Covert list to a np array 
+bincentroid = bincentroid  + HistMin # Shift array to beggining of histogram
 
-
-  
+#******************************************* **END SCRIPT** ************************************************
