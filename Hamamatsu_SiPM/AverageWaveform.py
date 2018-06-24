@@ -7,14 +7,22 @@ Last Updated: 23/06/18
 This script will be used to analyse the Hammamatsu SiPM Waveforms
 and produce a plot of the single photoelectron response. 
 
+To run this code execute
+
+python AverageWaveform.py 
+
+The file name needs to be in the format:
+SIPMthreeW<Number>.xml
+
+
 """
 #*****************************************************************************************************
 # Import Library
-from xml.dom import minidom     # For parsing an xml file input
-import matplotlib.pyplot as plt # Plottting Software
-import numpy as np              # For data analysis
-from scipy.optimize import curve_fit # For curve fitting
-from scipy.signal import savgol_filter
+from xml.dom import minidom             # For parsing an xml file input
+import matplotlib.pyplot as plt         # Plottting Software
+import numpy as np                      # For data analysis
+from scipy.optimize import curve_fit    # For curve fitting
+from scipy.signal import savgol_filter  # Savgol Filter
 import matplotlib.patches as mpatches
 
 # Set some default plot parameters. 
